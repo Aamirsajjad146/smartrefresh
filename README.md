@@ -1,4 +1,4 @@
-# Add Refresh Controller
+# Smartrefresh
 ```
 final RefreshController _refreshController = RefreshController();
 ```
