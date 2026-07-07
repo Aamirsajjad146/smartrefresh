@@ -1,7 +1,7 @@
 ## 0.0.3
 
 * Upgrade `flutter_lints` dependency constraint to `'>=5.0.0'`
-* Update `sdk` environment constraint from `^3.12.2` to `'>=3.12.2'`
+* Update `sdk` environment constraint from `^3.12.2` to `'>=3.12.2 <4.0.0'`
 * Fix `RefreshController.show()` never completing — the indicator could hang indefinitely
   because its internal `Completer` was never resolved
 * Fix unsafe null checks on `RefreshController`'s internal state and on the required
