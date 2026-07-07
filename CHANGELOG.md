@@ -1,4 +1,4 @@
-## 0.0.3
+## 1.0.0
 
 * Upgrade `flutter_lints` dependency constraint to `'>=5.0.0'`
 * Update `sdk` environment constraint from `^3.12.2` to `'>=3.12.2 <4.0.0'`
@@ -15,7 +15,8 @@
 * Add a working widget test (the previous test file had no `main()` and could not run)
 * Add a runnable example app under `example/`
 * Rewrite README with a complete usage guide and parameter reference
-* Add missing root `.gitignore`
+* Add missing root `.gitignore` and untrack the JetBrains `.iml` project file
+* Expand the package `description` to meet pub.dev's recommended length
 
 ## 0.0.2
 

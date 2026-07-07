@@ -1,6 +1,6 @@
 name: smartrefresh
-description: Flutter package for pull to refresh list data.
-version: 0.0.3
+description: A customizable pull-to-refresh widget for Flutter with distinct loading, success, and failure indicators for any scrollable widget.
+version: 1.0.0
 homepage: https://github.com/Aamirsajjad146/smartrefresh.git
 
 environment:
