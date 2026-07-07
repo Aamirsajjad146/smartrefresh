@@ -1,44 +1,34 @@
 
 import 'dart:async';
 import 'dart:math';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'enum/progressEnum.dart';
-import 'enum/pullToRefreshMode.dart';
+import 'enum/progress_enum.dart';
+import 'enum/pull_to_refresh_mode.dart';
 import 'indicater/circular_progress.dart';
 import 'indicater/clipper.dart';
-import 'refreshController.dart';
+import 'refresh_controller.dart';
 
 // The over-scroll distance that moves the indicator to its maximum
 // displacement, as a percentage of the scrollable's container extent.
 const double _kDragContainerExtentPercentage = 0.25;
 
-// How much the scroll's drag gesture can overshoot the LiquidPullToRefresh's
+// How much the scroll's drag gesture can overshoot the PullToRefresh's
 // displacement; max displacement = _kDragSizeFactorLimit * displacement.
 const double _kDragSizeFactorLimit = 1.5;
 
 // When the scroll ends, the duration of the progress indicator's animation
-// to the LiquidPullToRefresh's displacement.
+// to the PullToRefresh's displacement.
 // const Duration _kIndicatorSnapDuration = Duration(milliseconds: 150);
 
 // The duration of the ScaleTransitionIn of box that starts when the
 // refresh action has completed.
 const Duration _kIndicatorScaleDuration = Duration(milliseconds: 200);
 
-/// The signature for a function that's called when the user has dragged a
-/// [PullToRefresh] far enough to demonstrate that they want the app to
-/// refresh. The returned [Future] must complete when the refresh operation is
-/// finished.
-///
-/// Used by [PullToRefresh.onRefresh].
-typedef RefreshCallback = Future<void> Function();
-
-
 class PullToRefresh extends StatefulWidget {
   const PullToRefresh({
-    Key? key,
+    super.key,
     this.animSpeedFactor = 1.0,
     required this.child,
     required this.onFail,
@@ -53,8 +43,7 @@ class PullToRefresh extends StatefulWidget {
     this.springAnimationDurationInMilliseconds = 1000,
     this.borderWidth = 2.0,
     this.showChildOpacityTransition = true,
-  })  : assert(animSpeedFactor >= 1.0),
-        super(key: key);
+  }) : assert(animSpeedFactor >= 1.0);
 
   /// The widget below this widget in the tree.
   ///
@@ -70,7 +59,7 @@ class PullToRefresh extends StatefulWidget {
   ///
   /// The indicator will appear during loading.
   ///
-  final Text onLoading;
+  final Widget onLoading;
 
   /// The widget below this widget in the tree.
   ///
@@ -113,9 +102,11 @@ class PullToRefresh extends StatefulWidget {
   final bool showChildOpacityTransition;
 
   /// A function that's called when the user has dragged the progress indicator
-  /// far enough to demonstrate that they want the app to refresh. The returned
-  /// [Future] must complete when the refresh operation is finished.
-  // final RefreshCallback onRefresh;
+  /// far enough to demonstrate that they want the app to refresh.
+  ///
+  /// This does not signal completion itself — call
+  /// [RefreshController.refreshCompleted] or [RefreshController.refreshFailed]
+  /// on [refreshController] when the refresh work finishes.
   final VoidCallback? onRefresh;
 
   /// The progress indicator's foreground color. The current theme's
@@ -168,6 +159,7 @@ class PullToRefreshState extends State<PullToRefresh>
   late Animation<Color?> _valueColor;
 
   PullToRefreshMode? _mode;
+  Completer<void>? _completer;
   Future<void>? _pendingRefreshFuture;
   bool? _isIndicatorAtTop;
   double? _dragOffset;
@@ -252,9 +244,7 @@ class PullToRefreshState extends State<PullToRefresh>
 
     _childOpacityAnimation = _positionController.drive(_oneToZeroTween);
 
-    if (widget.refreshController != null) {
-      widget.refreshController.setFRefreshState(this);
-    }
+    widget.refreshController.setFRefreshState(this);
   }
 
   @override
@@ -263,9 +253,9 @@ class PullToRefreshState extends State<PullToRefresh>
     _valueColor = _positionController.drive(
       ColorTween(
               begin: (widget.backgroundColor ?? theme.colorScheme.secondary)
-                  .withOpacity(0.0),
+                  .withValues(alpha: 0.0),
               end: (widget.backgroundColor ?? theme.colorScheme.secondary)
-                  .withOpacity(1.0))
+                  .withValues(alpha: 1.0))
           .chain(CurveTween(
               curve: const Interval(0.0, 1.0 / _kDragSizeFactorLimit))),
     );
@@ -319,7 +309,7 @@ class PullToRefreshState extends State<PullToRefresh>
         if (notification.metrics.extentBefore > 0.0) {
           _dismiss(PullToRefreshMode.canceled);
         } else {
-          if (_dragOffset != null) {
+          if (_dragOffset != null && notification.scrollDelta != null) {
             _dragOffset = _dragOffset! - notification.scrollDelta!;
           }
           _checkDragOffset(notification.metrics.viewportDimension);
@@ -485,12 +475,11 @@ class PullToRefreshState extends State<PullToRefresh>
     double newValue =
         _dragOffset! / (containerExtent * _kDragContainerExtentPercentage);
     if (_mode == PullToRefreshMode.armed) {
-      newValue = math.max(newValue, 1.0 / _kDragSizeFactorLimit);
+      newValue = max(newValue, 1.0 / _kDragSizeFactorLimit);
     }
     _positionController.value =
         newValue.clamp(0.0, 1.0); // this triggers various rebuilds
-    if (_mode == PullToRefreshMode.drag &&
-        _valueColor.value!.alpha == 0xFF) {
+    if (_mode == PullToRefreshMode.drag && _valueColor.value!.a == 1.0) {
       _mode = PullToRefreshMode.armed;
     }
   }
@@ -501,6 +490,7 @@ class PullToRefreshState extends State<PullToRefresh>
     assert(_mode != PullToRefreshMode.refresh);
     assert(_mode != PullToRefreshMode.snap);
     final Completer<void> completer = Completer<void>();
+    _completer = completer;
     _pendingRefreshFuture = completer.future;
     _mode = PullToRefreshMode.snap;
 
@@ -557,8 +547,9 @@ class PullToRefreshState extends State<PullToRefresh>
     if (mounted && _mode == PullToRefreshMode.refresh) {
       _progressStatus = ProgressStatus.completed;
       indicaterWidget = widget.onComplete;
-      await Future.delayed(const Duration(milliseconds:500));
-      //completer.complete();
+      await Future.delayed(const Duration(milliseconds: 500));
+      _completer?.complete();
+      _completer = null;
 
       _dismiss(PullToRefreshMode.done);
     }
@@ -569,8 +560,9 @@ class PullToRefreshState extends State<PullToRefresh>
     if (mounted && _mode == PullToRefreshMode.refresh) {
       _progressStatus = ProgressStatus.failed;
       indicaterWidget = widget.onFail;
-      await Future.delayed(const Duration(milliseconds:500));
-      //completer.complete();
+      await Future.delayed(const Duration(milliseconds: 500));
+      _completer?.complete();
+      _completer = null;
 
       _dismiss(PullToRefreshMode.done);
     }
@@ -580,11 +572,12 @@ class PullToRefreshState extends State<PullToRefresh>
   /// been started interactively. If this method is called while the refresh
   /// callback is running, it quietly does nothing.
   ///
-  /// Creating the [PullToRefresh] with a [GlobalKey<LiquidPullToRefreshState>]
+  /// Creating the [PullToRefresh] with a `GlobalKey<PullToRefreshState>`
   /// makes it possible to refer to the [PullToRefreshState].
   ///
-  /// The future returned from this method completes when the
-  /// [PullToRefresh.onRefresh] callback's future completes.
+  /// The future returned from this method completes when
+  /// [RefreshController.refreshCompleted] or [RefreshController.refreshFailed]
+  /// is called.
   ///
   /// If you await the future returned by this function from a [State], you
   /// should check that the state is still [mounted] before calling [setState].
@@ -608,18 +601,18 @@ class PullToRefreshState extends State<PullToRefresh>
     assert(debugCheckHasMaterialLocalizations(context));
 
     // assigning default color and background color
-    Color _defaultColor = Theme.of(context).colorScheme.secondary;
-    Color _defaultBackgroundColor = Theme.of(context).canvasColor;
+    Color defaultColor = Theme.of(context).colorScheme.secondary;
+    Color defaultBackgroundColor = Theme.of(context).canvasColor;
 
     // assigning default height
-    double _defaultHeight = 100.0;
+    double defaultHeight = 100.0;
 
     // checking whether to take default values or not
-    Color color = (widget.backgroundColor != null) ? widget.backgroundColor! : _defaultColor;
+    Color color = (widget.backgroundColor != null) ? widget.backgroundColor! : defaultColor;
     Color backgroundColor = (widget.tColor != null)
         ? widget.tColor!
-        : _defaultBackgroundColor;
-    double height = (widget.height != null) ? widget.height! : _defaultHeight;
+        : defaultBackgroundColor;
+    double height = (widget.height != null) ? widget.height! : defaultHeight;
 
     final Widget child = NotificationListener<ScrollNotification>(
       key: _key,
@@ -699,7 +692,7 @@ class PullToRefreshState extends State<PullToRefresh>
             );
           },
         ),
-        Container(
+        SizedBox(
           height: height, //100.0
           child: AnimatedBuilder(
             animation: Listenable.merge([
@@ -786,7 +779,7 @@ class PullToRefreshState extends State<PullToRefresh>
     );
   }
 
-  getIndicaterOpcity(double height){
+  double getIndicaterOpcity(double height){
    double innerCircleRadius = height *
         15 /
         100 * // 15.0

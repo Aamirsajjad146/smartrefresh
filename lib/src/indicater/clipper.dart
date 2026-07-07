@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Clipper for [LiquidPullToRefresh]
+/// Clipper for [PullToRefresh]
 class CurveHillClipper extends CustomClipper<Path> {
   final double centreHeight;
   double curveHeight;
@@ -16,7 +16,7 @@ class CurveHillClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    var path = new Path();
+    var path = Path();
     if (size.height >= centreHeight) {
       if (curveHeight > (size.height - centreHeight)) {
         curveHeight = size.height - centreHeight;

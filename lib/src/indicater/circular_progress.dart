@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
-/// Progress Indicator for [LiquidPullToRefresh]
+/// Progress Indicator for [PullToRefresh]
 class CircularProgress extends StatefulWidget {
   final double innerCircleRadius;
   final double progressPercent;
@@ -13,7 +13,7 @@ class CircularProgress extends StatefulWidget {
   final double startAngle;
 
   const CircularProgress({
-    Key? key,
+    super.key,
     required this.innerCircleRadius,
     required this.progressPercent,
     required this.progressCircleRadius,
@@ -21,7 +21,7 @@ class CircularProgress extends StatefulWidget {
     required this.backgroundColor,
     required this.progressCircleOpacity,
     required this.startAngle,
-  }) : super(key: key);
+  });
 
   @override
   CircularProgressState createState() => CircularProgressState();
@@ -68,21 +68,6 @@ class CircularProgressState extends State<CircularProgress> {
         ],
       ),
     );
-  }
-}
-
-class CircularProgressIndicator extends StatefulWidget {
-  const CircularProgressIndicator({Key? key}) : super(key: key);
-
-  @override
-  CircularProgressIndicatorState createState() =>
-      CircularProgressIndicatorState();
-}
-
-class CircularProgressIndicatorState extends State<CircularProgressIndicator> {
-  @override
-  Widget build(BuildContext context) {
-    return Container();
   }
 }
 
